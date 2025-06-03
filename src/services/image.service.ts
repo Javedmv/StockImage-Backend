@@ -1,4 +1,6 @@
+import path from "path";
 import { Image } from "../models/image.model";
+import fs from 'fs';
 
 type UploadedFiles = {
   filename: string;
@@ -52,3 +54,53 @@ export const getAllImages = async (email:string) => {
     console.log(error)
   }
 }
+
+export const updateSingleImage = async (
+  imageId: string,
+  uploadedFile: Express.Multer.File,
+  title: string,
+  userEmail: string
+): Promise<any> => {
+  try {
+    if (!uploadedFile) {
+      throw new Error("No file provided");
+    }
+    if (!imageId) {
+      throw new Error("Image ID is required");
+    }
+
+    // Find the existing image to make sure it belongs to the user
+    const existingImage = await Image.findOne({ _id: imageId, userRef: userEmail });
+    if (!existingImage) {
+      throw new Error("Image not found or unauthorized");
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      title: title || existingImage.title,
+    };
+
+    // If a new image file is provided, update the imageUrl
+    if (uploadedFile) {
+      updateData.imageUrl = `/uploads/${uploadedFile.filename}`;
+      
+      // Optional: Delete the old image file from disk
+      const oldImagePath = path.join(process.cwd(), "src", existingImage.imageUrl);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+    }
+
+    // Update the image in the database
+    const updatedImage = await Image.findByIdAndUpdate(
+      imageId,
+      updateData,
+      { new: true }
+    );
+
+    return updatedImage;
+  } catch (error) {
+    console.error("Error updating image:", error);
+    throw error;
+  }
+};

@@ -47,6 +47,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 export const signup = async (req: Request, res: Response) => {
   try {
     let { name, email, phone, password } = req.body;
+    console.log(req.body)
     if (!name || name.trim().length === 0) {
       res.status(400).json({ message: "Name is required" });
       return;
@@ -94,7 +95,7 @@ export const signup = async (req: Request, res: Response) => {
     res.status(200).json({message: "Otp generated Successfully"});
     return;
   } catch (error) {
-    console.log("Error in signup:", error);
+    console.error("Error in signup:", error);
   }
 };
 
@@ -150,7 +151,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
     res.status(200).json({ isVerified: true, message: "OTP verified successfully" });
     return;
   } catch (error) {
-    console.log(error)
+    console.error(error)
   }
 }
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getUsers, login, signup, updatePassword, verifyOtp, logout} from "../controllers/user.controller";
 import { upload } from "../lib/multer";
-import { deleteImage, editTitle, getImage, handleUpload, reorderImages } from "../controllers/image.controller";
+import { deleteImage, editImages, editTitle, getImage, handleUpload, reorderImages } from "../controllers/image.controller";
  
 
 const router = Router();
@@ -19,5 +19,6 @@ router.get("/images", getImage);
 router.put("/images/:id", editTitle)
 router.delete("/images/:id", deleteImage);
 router.post("/images/reorder", reorderImages);
+router.put("/edit-images/:id", upload.single("image"), editImages);
 
 export default router;
