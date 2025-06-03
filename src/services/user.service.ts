@@ -1,5 +1,7 @@
 import e from 'express';
 import { User } from '../models/user.model';
+import bcrypt from "bcrypt";
+
 
 interface CreateUserInput {
   name: string;
@@ -61,4 +63,58 @@ export const otpVerify = async (email: string, otp: string) => {
     } catch (error) {
         console.log("Error verifying OTP:", error);
     }
+}
+
+type UserLoginResponse = {
+  email: string;
+  username: string;
+  phone: string;
+  isVerified: boolean;
+}
+
+export const userLogin = async (email: string, password: string): Promise<UserLoginResponse | null> => {
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return null;
+    }
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return null;
+    }
+
+    return {
+      email: user.email,
+      username: user.username,
+      phone: user.phone,
+      isVerified: user.isVerified,
+      };
+    } catch (error) {
+    console.error("Error in userLogin:", error);
+    return null;
+  }
+};
+
+export const updatePasswordService = async (email: string, oldPassword:string, newPassword: string): Promise<boolean> => {
+  try {
+    const user = await User.findOne({ email });
+    if(!user){
+      console.log("User not found");
+      return false;
+    }
+    const isPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
+    if (!isPasswordCorrect) {
+      console.log("Old password is incorrect");
+      return false;
+    }
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+    return true;
+  } catch (error) {
+    console.log("Error updating password:", error);
+    return false;
+  }
 }

@@ -1,6 +1,10 @@
 import express from "express";
 import userRoutes from "./routes/user.routes";
 import cors from "cors";
+import cookieParser from 'cookie-parser';
+import path from "path";
+import morgan from "morgan";
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -13,6 +17,10 @@ app.use(cors({
 }))
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use("/uploads", express.static(path.join(process.cwd(), "src", "uploads")));
+app.use(morgan("dev"));
+
 
 // Routes
 app.use("/api/users", userRoutes);
