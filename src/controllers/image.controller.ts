@@ -39,8 +39,8 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
       res.status(200).json({ message: 'Files uploaded successfully', files: uploadedFiles });
       return;
     } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({ message: 'Server error during upload' });
+      console.error("Error handling file upload:", error);
+      res.status(500).json({ message: error || "Internal Server Error" });
       return;
     }
   };
@@ -72,7 +72,9 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
       });
       return;
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching images:", error);
+      res.status(500).json({ message: error || "Internal Server Error" });
+      return;
     }
   }
 
@@ -93,7 +95,9 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
       res.status(200).json({ message: "Title updated successfully", image: response });
       return;
     } catch (error) {
-      console.error(error); 
+      console.error("Error updating title:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
+      return;
     }
   }
 
@@ -123,8 +127,8 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
       res.status(200).json({ message: "Image deleted and order updated" })
       return;
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      console.error("Error deleting image:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
       return;
     }
   };
@@ -150,8 +154,8 @@ export const reorderImages = async (req: Request, res: Response) => {
     res.status(200).json({ message: 'Image order updated successfully' });
     return;
   } catch (error) {
-    console.error('Order update failed:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Error reordering images:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
     return;
   }
 };
@@ -199,7 +203,7 @@ export const editImages = async (req: Request, res: Response) => {
     if (error.message === "Image not found or unauthorized") {
       res.status(404).json({ message: error.message });
     } else {
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
     }
     return;
   }

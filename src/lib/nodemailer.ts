@@ -11,7 +11,7 @@ const generateVerificationMail = async (email: string, title: string, body:strin
         })
 
         let info = await transporter.sendMail({
-            from : "VLearning - Email Verification",
+            from : "Stock Image - Email Verification",
             to: email,
             subject: title,
             html: body

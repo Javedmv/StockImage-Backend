@@ -47,7 +47,6 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 export const signup = async (req: Request, res: Response) => {
   try {
     let { name, email, phone, password } = req.body;
-    console.log(req.body)
     if (!name || name.trim().length === 0) {
       res.status(400).json({ message: "Name is required" });
       return;
@@ -83,6 +82,7 @@ export const signup = async (req: Request, res: Response) => {
     const otp = generateOtp(4);
     const newUser = await createOrUpdateUser({name, email, phone, password, otp});
 
+
     if (!newUser) {
       res.status(500).json({ message: "Error creating user" });
       return;
@@ -96,6 +96,8 @@ export const signup = async (req: Request, res: Response) => {
     return;
   } catch (error) {
     console.error("Error in signup:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+    return;
   }
 };
 
@@ -127,7 +129,8 @@ export const login = async (req: Request, res: Response) => {
     return;
   } catch (error) {
     console.error("Error in login:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+    return;
   }
 };
 
@@ -151,7 +154,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
     res.status(200).json({ isVerified: true, message: "OTP verified successfully" });
     return;
   } catch (error) {
-    console.error(error)
+    console.error("Error in OTP verification:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+    return;
   }
 }
 
@@ -167,6 +172,7 @@ export const logout = (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error during logout:", error);
     res.status(500).json({ message: "Server error during logout" });
+    return;
   }
 }
 
@@ -207,7 +213,8 @@ export const updatePassword = async (req: Request, res: Response) => {
     res.status(200).json({ message: "Password updated successfully" });
     return;
   } catch (error) {
-    console.error("Password update failed:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error in updatePassword:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+    return;
   }
 };

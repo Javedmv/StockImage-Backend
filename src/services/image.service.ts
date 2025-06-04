@@ -33,7 +33,7 @@ export const imageSave = async (
     return "Images saved successfully";
   } catch (error) {
     console.error("Error saving images:", error);
-    throw new Error("Failed to save images");
+    throw new Error(error instanceof Error ? error.message : "Unknown error occurred while saving images");
   }
 };
 
@@ -47,11 +47,10 @@ export const getAllImages = async (email:string) => {
       createdAt: img.createdAt,
       imageUrl: `${process.env.BACKEND_URL || "http://localhost:5000"}${img.imageUrl}`,
     }));
-    console.log(imageList, "imageList");
-
     return imageList;
   } catch (error) {
-    console.log(error)
+    console.error("Error fetching images:", error);
+    throw new Error(error instanceof Error ? error.message : "Unknown error occurred while fetching images");
   }
 }
 

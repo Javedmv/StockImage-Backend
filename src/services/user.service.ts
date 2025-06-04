@@ -26,13 +26,13 @@ export const userCheck = async (email: string) => {
 export const createOrUpdateUser = async (input: CreateUserInput) => {
     try {
       const updatedUser = await User.findOneAndUpdate(
-        { email: input.email }, // Filter by email
+        { email: input.email },
         {
           $set: {
             username: input.name,
             phone: input.phone,
             otp: input.otp,
-            password: input.password, // Make sure it's already hashed if required
+            password: input.password,
           },
         },
         {
@@ -44,7 +44,6 @@ export const createOrUpdateUser = async (input: CreateUserInput) => {
   
       return updatedUser;
     } catch (error) {
-      console.error("Error creating or updating user:", error);
       throw error;
     }
   };
@@ -61,7 +60,7 @@ export const otpVerify = async (email: string, otp: string) => {
             return false;
         }
     } catch (error) {
-        console.log("Error verifying OTP:", error);
+      throw error;
     }
 }
 
@@ -93,7 +92,7 @@ export const userLogin = async (email: string, password: string): Promise<UserLo
       };
     } catch (error) {
     console.error("Error in userLogin:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -115,6 +114,6 @@ export const updatePasswordService = async (email: string, oldPassword:string, n
     return true;
   } catch (error) {
     console.log("Error updating password:", error);
-    return false;
+    throw error;
   }
 }
