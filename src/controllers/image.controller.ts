@@ -136,7 +136,6 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
 export const reorderImages = async (req: Request, res: Response) => {
   try {
     const { updates } = req.body;
-    console.log(updates, "updates");
     if (!Array.isArray(updates)) {
       res.status(400).json({ message: 'Invalid updates payload' });
       return;

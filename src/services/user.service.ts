@@ -19,7 +19,7 @@ export const userCheck = async (email: string) => {
             return null;
         }
     } catch (error) {
-        console.log("Error checking user:", error);
+      throw error;
     }
 }
 
@@ -100,12 +100,10 @@ export const updatePasswordService = async (email: string, oldPassword:string, n
   try {
     const user = await User.findOne({ email });
     if(!user){
-      console.log("User not found");
       return false;
     }
     const isPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
     if (!isPasswordCorrect) {
-      console.log("Old password is incorrect");
       return false;
     }
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -113,7 +111,6 @@ export const updatePasswordService = async (email: string, oldPassword:string, n
     await user.save();
     return true;
   } catch (error) {
-    console.log("Error updating password:", error);
     throw error;
   }
 }

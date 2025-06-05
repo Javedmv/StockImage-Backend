@@ -17,7 +17,6 @@ const generateVerificationMail = async (email: string, title: string, body:strin
             html: body
         })
 
-        console.log("Message sent: %s", info.messageId);
         console.log("Response: %s", info.response);
     } catch (error: unknown) {
         if (error instanceof Error) {
