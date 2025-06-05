@@ -45,7 +45,7 @@ export const getAllImages = async (email:string) => {
       title: img.title,
       order: img.order,
       createdAt: img.createdAt,
-      imageUrl: `${process.env.BACKEND_URL || "http://localhost:5000"}${img.imageUrl}`,
+      imageUrl: `${process.env.BACKEND_URL}${img.imageUrl}`,
     }));
     return imageList;
   } catch (error) {
