@@ -30,10 +30,10 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.12",
     "@types/nodemailer": "^6.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@types/mongoose": "^5.11.97"
   },
   "devDependencies": {
-    "@types/mongoose": "^5.11.97",
     "nodemon": "^3.1.10",
     "ts-node-dev": "^2.0.0"
   }
