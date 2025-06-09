@@ -23,7 +23,7 @@ export const imageSave = async (
 
     const images = uploadedFiles.map((file, index) => ({
       title: titles[index] || "Untitled",
-      imageUrl: `/uploads/${file.filename}`,
+      imageUrl: `/tmp/${file.filename}`,
       userRef: email,
       order: order + index + 1,
     }));
