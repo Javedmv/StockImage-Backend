@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use("/tmp", express.static(path.join(process.cwd(), "src", "uploads")));
+app.use("/tmp", express.static(path.join(process.cwd(), "src", "tmp")));
 app.use(morgan("dev"));
 
 app.use("/health", (req, res) => {
