@@ -81,7 +81,7 @@ export const updateSingleImage = async (
 
     // If a new image file is provided, update the imageUrl
     if (uploadedFile) {
-      updateData.imageUrl = `/uploads/${uploadedFile.filename}`;
+      updateData.imageUrl = `/tmp/${uploadedFile.filename}`;
       
       // Optional: Delete the old image file from disk
       const oldImagePath = path.join(process.cwd(), "src", existingImage.imageUrl);
