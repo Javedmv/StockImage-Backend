@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getAllImages, imageSave, updateSingleImage } from "../services/image.service";
 import { decodeToken } from "../lib/helper";
 import { Image } from "../models/image.model";
+import cloudinary from "../config/cloudinary";
 
 export const handleUpload = async (req: Request, res: Response):Promise<void> => {
     try { 
@@ -10,34 +11,29 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
         res.status(400).json({ message: 'No files uploaded' });
         return;
       }
+      
       const { titles } = req.body;
-
-      const uploadedFiles = files.map((file) => ({
-        filename: file.filename,
-        path: file.path,
-      }));
-
+      
       const token = req.cookies?.token;
-
+      
       if (!token) {
         res.status(401).json({ message: "Unauthorized: No token provided" });
         return;
       }
-  
+      
       const decoded = decodeToken(token);
-
+      
       if (!decoded || !decoded.user) {
         res.status(401).json({ message: "Unauthorized: Invalid token" });
         return;
       }
-
+      
       const user = decoded.user;
-      const result = await imageSave(uploadedFiles, user.email, titles)
-  
-      // Here you can save the uploaded file information to your database if needed
-  
-      res.status(200).json({ message: 'Files uploaded successfully', files: uploadedFiles });
+      const result = await imageSave(files, user.email, titles); // pass full files
+      
+      res.status(200).json({ message: 'Files uploaded successfully', files });      
       return;
+      
     } catch (error) {
       console.error("Error handling file upload:", error);
       res.status(500).json({ message: error || "Internal Server Error" });
@@ -115,8 +111,28 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
         return;
       }
   
-      const deletedOrder = imageToDelete.order;
+      let publicIdToDelete: string | null = null;
+      try {
+        const urlParts = imageToDelete.imageUrl.split("/");
+        const uploadIndex = urlParts.findIndex((part) => part === "upload");
+        if (uploadIndex !== -1) {
+          const folderAndFile = urlParts.slice(uploadIndex + 1).join("/"); 
+          publicIdToDelete = folderAndFile.replace(/\.[^/.]+$/, ""); 
+        }
+      } catch (e) {
+        console.warn("Could not extract public_id from Cloudinary URL:", e);
+      }
   
+      if (publicIdToDelete) {
+        try {
+          await cloudinary.uploader.destroy(publicIdToDelete);
+        } catch (e) {
+          console.warn("Failed to delete image from Cloudinary:", e);
+        }
+      }
+  
+      const deletedOrder = imageToDelete.order;
+
       await Image.findByIdAndDelete(id);
   
       await Image.updateMany(
@@ -124,7 +140,7 @@ export const handleUpload = async (req: Request, res: Response):Promise<void> =>
         { $inc: { order: -1 } }
       );
   
-      res.status(200).json({ message: "Image deleted and order updated" })
+      res.status(200).json({ message: "Image deleted from DB and Cloudinary, order updated" });
       return;
     } catch (error) {
       console.error("Error deleting image:", error);
@@ -169,7 +185,6 @@ export const editImages = async (req: Request, res: Response) => {
       return;
     }
 
-    // Get user from token
     const token = req.cookies?.token;
     if (!token) {
       res.status(401).json({ message: "Unauthorized: No token provided" });

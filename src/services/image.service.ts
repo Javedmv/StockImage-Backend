@@ -1,14 +1,21 @@
 import path from "path";
 import { Image } from "../models/image.model";
 import fs from 'fs';
+import cloudinary from "../config/cloudinary";
 
 type UploadedFiles = {
   filename: string;
   path: string;
 };
+export type ImageDocument = {
+  title: string;
+  imageUrl: string;
+  userRef: string;
+  order: number;
+};
 
 export const imageSave = async (
-  uploadedFiles: UploadedFiles[],
+  uploadedFiles: Express.Multer.File[],
   email: string,
   titles: string[]
 ): Promise<string> => {
@@ -19,23 +26,40 @@ export const imageSave = async (
     if (!email) {
       throw new Error("Email is required");
     }
-    const order = await Image.countDocuments({ userRef: email }) || 0;
 
-    const images = uploadedFiles.map((file, index) => ({
-      title: titles[index] || "Untitled",
-      imageUrl: `/tmp/${file.filename}`,
-      userRef: email,
-      order: order + index + 1,
-    }));
+    const order = await Image.countDocuments({ userRef: email }) || 0;
+    const images: ImageDocument[] = [];
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      const title = titles[i] || "Untitled";
+
+      const base64String = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+      const uploadResult = await cloudinary.uploader.upload(base64String, {
+        folder: "stockImage", 
+      });
+
+      images.push({
+        title,
+        imageUrl: uploadResult.secure_url,
+        userRef: email,
+        order: order + i + 1,
+      });
+    }
 
     await Image.insertMany(images);
-
-    return "Images saved successfully";
+    return "Images uploaded to Cloudinary and saved to DB successfully";
   } catch (error) {
-    console.error("Error saving images:", error);
-    throw new Error(error instanceof Error ? error.message : "Unknown error occurred while saving images");
+    console.error("Error uploading to Cloudinary:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Unknown error occurred while uploading to Cloudinary"
+    );
   }
 };
+
+
 
 export const getAllImages = async (email:string) => {
   try {
@@ -45,7 +69,7 @@ export const getAllImages = async (email:string) => {
       title: img.title,
       order: img.order,
       createdAt: img.createdAt,
-      imageUrl: `${process.env.BACKEND_URL}${img.imageUrl}`,
+      imageUrl: img.imageUrl,
     }));
     return imageList;
   } catch (error) {
@@ -68,34 +92,45 @@ export const updateSingleImage = async (
       throw new Error("Image ID is required");
     }
 
-    // Find the existing image to make sure it belongs to the user
     const existingImage = await Image.findOne({ _id: imageId, userRef: userEmail });
     if (!existingImage) {
       throw new Error("Image not found or unauthorized");
     }
 
-    // Prepare update data
-    const updateData: any = {
-      title: title || existingImage.title,
-    };
+    const oldUrl = existingImage.imageUrl;
+    let publicIdToDelete;
 
-    // If a new image file is provided, update the imageUrl
-    if (uploadedFile) {
-      updateData.imageUrl = `/tmp/${uploadedFile.filename}`;
-      
-      // Optional: Delete the old image file from disk
-      const oldImagePath = path.join(process.cwd(), "src", existingImage.imageUrl);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
+    try {
+      const urlParts = oldUrl.split("/");
+      const lastPart = urlParts[urlParts.length - 1];
+      const folderIndex = urlParts.findIndex(part => part === "upload") + 1;
+      const folderAndFile = urlParts.slice(folderIndex).join("/"); 
+
+      publicIdToDelete = folderAndFile.replace(/\.[^/.]+$/, ""); 
+    } catch (e) {
+      console.warn("Could not extract public_id from Cloudinary URL:", e);
+    }
+
+    const base64String = `data:${uploadedFile.mimetype};base64,${uploadedFile.buffer.toString("base64")}`;
+
+    const uploadResult = await cloudinary.uploader.upload(base64String, {
+      folder: "stockImage",
+    });
+
+    if (publicIdToDelete) {
+      try {
+        await cloudinary.uploader.destroy(publicIdToDelete);
+      } catch (e) {
+        console.warn("Failed to delete old image from Cloudinary:", e);
       }
     }
 
-    // Update the image in the database
-    const updatedImage = await Image.findByIdAndUpdate(
-      imageId,
-      updateData,
-      { new: true }
-    );
+    const updateData: any = {
+      title: title || existingImage.title,
+      imageUrl: uploadResult.secure_url,
+    };
+
+    const updatedImage = await Image.findByIdAndUpdate(imageId, updateData, { new: true });
 
     return updatedImage;
   } catch (error) {
