@@ -1,3 +1,4 @@
+/// <reference path="../custom.d.ts" />
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { createOrUpdateUser, otpVerify, updatePasswordService, userCheck, userLogin } from "../services/user.service";
@@ -20,28 +21,8 @@ export interface JwtPayload {
 }
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const token = req.cookies?.token;
-
-    if (!token) {
-      res.status(401).json({ message: "Unauthorized: No token provided" });
-      return;
-    }
-
-    const decoded = decodeToken(token);
-
-    if(!decoded || !decoded.user) {
-      res.status(401).json({ message: "Unauthorized: Invalid token" });
-      return;
-    }
-    
-    res.status(200).json({ message: "Token verified", user: decoded.user });
-    return;
-  } catch (error) {
-    console.error("JWT verification failed:", error);
-    res.status(401).json({ message: "Unauthorized: Invalid token" });
-    return;
-  }
+  // The user is attached by the 'protect' middleware
+  res.status(200).json({ message: "User is authenticated", user: req.user });
 };
 
 export const signup = async (req: Request, res: Response) => {
@@ -180,7 +161,6 @@ export const updatePassword = async (req: Request, res: Response) => {
   try {
     const { oldPassword, newPassword } = req.body;
 
-    // Validate passwords
     if (
       !oldPassword?.trim() ||
       !newPassword?.trim() ||
@@ -189,19 +169,11 @@ export const updatePassword = async (req: Request, res: Response) => {
       res.status(400).json({ message: "Password is required and must be at least 6 characters long" });
       return;
     }
-
-    const token = req.cookies?.token;
-    if (!token) {
-      res.status(401).json({ message: "Unauthorized: No token provided" });
+    if(!req.user){
       return;
     }
 
-    const decoded = decodeToken(token);
-    if (!decoded || !decoded.user) {
-      res.status(401).json({ message: "Unauthorized: Invalid token" });
-      return;
-    }
-    const user = decoded.user;
+    const user = req.user!;
 
     const isSuccessfull = await updatePasswordService(user.email, oldPassword, newPassword);
 
@@ -211,10 +183,8 @@ export const updatePassword = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({ message: "Password updated successfully" });
-    return;
   } catch (error) {
     console.error("Error in updatePassword:", error);
     res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
-    return;
   }
 };

@@ -1,24 +1,16 @@
 import { Router } from "express";
 import { getUsers, login, signup, updatePassword, verifyOtp, logout} from "../controllers/user.controller";
-import { upload } from "../lib/multer";
-import { deleteImage, editImages, editTitle, getImage, handleUpload, reorderImages } from "../controllers/image.controller";
- 
+import { protect } from "../middleware/auth.middleware";
 
 const router = Router();
 
-router.get("/", getUsers);
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/verify-otp", verifyOtp);
-router.get("/get-user", getUsers);
 router.post("/logout", logout);
 
-router.post("/update-password", updatePassword);
-router.post("/upload", upload.array("images",10), handleUpload);
-router.get("/images", getImage);
-router.put("/images/:id", editTitle)
-router.delete("/images/:id", deleteImage);
-router.post("/images/reorder", reorderImages);
-router.put("/edit-images/:id", upload.single("image"), editImages);
+// Protected routes
+router.get("/me", protect, getUsers);
+router.post("/update-password", protect, updatePassword);
 
 export default router;

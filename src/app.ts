@@ -1,5 +1,6 @@
 import express from "express";
 import userRoutes from "./routes/user.routes";
+import imageRoutes from "./routes/image.routes";
 import cors from "cors";
 import cookieParser from 'cookie-parser';
 import path from "path";
@@ -29,6 +30,7 @@ app.use("/health", (req, res) => {
 });
 // Routes
 app.use("/api/users", userRoutes);
+app.use("/api/images", imageRoutes);
 
 // 404 Handler
 app.use((req, res) => {

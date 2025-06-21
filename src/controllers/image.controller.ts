@@ -4,162 +4,124 @@ import { decodeToken } from "../lib/helper";
 import { Image } from "../models/image.model";
 import cloudinary from "../config/cloudinary";
 
-export const handleUpload = async (req: Request, res: Response):Promise<void> => {
-    try { 
-      const files = req.files as Express.Multer.File[];
-      if (!files || files.length === 0) {
-        res.status(400).json({ message: 'No files uploaded' });
-        return;
-      }
-      
-      const { titles } = req.body;
-      
-      const token = req.cookies?.token;
-      
-      if (!token) {
-        res.status(401).json({ message: "Unauthorized: No token provided" });
-        return;
-      }
-      
-      const decoded = decodeToken(token);
-      
-      if (!decoded || !decoded.user) {
-        res.status(401).json({ message: "Unauthorized: Invalid token" });
-        return;
-      }
-      
-      const user = decoded.user;
-      const result = await imageSave(files, user.email, titles); // pass full files
-      
-      res.status(200).json({ message: 'Files uploaded successfully', files });      
-      return;
-      
-    } catch (error) {
-      console.error("Error handling file upload:", error);
-      res.status(500).json({ message: error || "Internal Server Error" });
+export const handleUpload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      res.status(400).json({ message: 'No files uploaded' });
       return;
     }
-  };
 
+    const { titles } = req.body;
+    const user = req.user!;
 
-  export const getImage = async (req: Request, res: Response) => {
-    try {
-      const token = req.cookies?.token;
+    await imageSave(files, user.email, titles);
 
-      if (!token) {
-        res.status(401).json({ message: "Unauthorized: No token provided" });
-        return;
-      }
-  
-      const decoded = decodeToken(token);
-
-      if (!decoded.user) {
-        res.status(401).json({ message: "Unauthorized: Invalid token" });
-        return;
-      }
-
-      const user = decoded.user;
-
-      const images = await getAllImages(user.email);
-
-      res.status(200).json({
-        message: "Images fetched successfully",
-        images,
-      });
-      return;
-    } catch (error) {
-      console.error("Error fetching images:", error);
-      res.status(500).json({ message: error || "Internal Server Error" });
-      return;
-    }
+    res.status(200).json({ message: 'Files uploaded successfully' });
+  } catch (error) {
+    console.error("Error handling file upload:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
   }
+};
 
-  export const editTitle = async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const { title } = req.body;
 
-      if (!title || title.trim() === "") {
-        res.status(400).json({ message: "Title is required" });
-        return;
-      }
-      const response = await Image.findByIdAndUpdate(id, { title }, { new: true });
-      if (!response) {
-        res.status(404).json({ message: "Image not found" });
-        return;
-      }
-      res.status(200).json({ message: "Title updated successfully", image: response });
-      return;
-    } catch (error) {
-      console.error("Error updating title:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
+export const getImage = async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const images = await getAllImages(user.email);
+    res.status(200).json({
+      message: "Images fetched successfully",
+      images,
+    });
+  } catch (error) {
+    console.error("Error fetching images:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
+  }
+};
+
+export const editTitle = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+    const user = req.user!;
+
+    if (!title || title.trim() === "") {
+      res.status(400).json({ message: "Title is required" });
       return;
     }
-  }
 
-  export const deleteImage = async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      if (!id) {
-        res.status(400).json({ message: "Image ID is required" });
-        return;
-      }
-  
-      const imageToDelete = await Image.findById(id);
-      if (!imageToDelete) {
-        res.status(404).json({ message: "Image not found" });
-        return;
-      }
-  
-      let publicIdToDelete: string | null = null;
+    const image = await Image.findOne({ _id: id, userEmail: user.email });
+
+    if (!image) {
+      res.status(404).json({ message: "Image not found or you are not authorized to edit it" });
+      return;
+    }
+
+    image.title = title;
+    await image.save();
+
+    res.status(200).json({ message: "Title updated successfully", image });
+  } catch (error) {
+    console.error("Error updating title:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
+  }
+};
+
+export const deleteImage = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const imageToDelete = await Image.findOne({ _id: id, userEmail: user.email });
+    if (!imageToDelete) {
+      res.status(404).json({ message: "Image not found or you are not authorized to delete it" });
+      return;
+    }
+
+    if (imageToDelete.publicId) {
       try {
-        const urlParts = imageToDelete.imageUrl.split("/");
-        const uploadIndex = urlParts.findIndex((part) => part === "upload");
-        if (uploadIndex !== -1) {
-          const folderAndFile = urlParts.slice(uploadIndex + 1).join("/"); 
-          publicIdToDelete = folderAndFile.replace(/\.[^/.]+$/, ""); 
-        }
+        await cloudinary.uploader.destroy(imageToDelete.publicId);
       } catch (e) {
-        console.warn("Could not extract public_id from Cloudinary URL:", e);
+        console.warn("Failed to delete image from Cloudinary:", e);
       }
-  
-      if (publicIdToDelete) {
-        try {
-          await cloudinary.uploader.destroy(publicIdToDelete);
-        } catch (e) {
-          console.warn("Failed to delete image from Cloudinary:", e);
-        }
-      }
-  
-      const deletedOrder = imageToDelete.order;
-
-      await Image.findByIdAndDelete(id);
-  
-      await Image.updateMany(
-        { order: { $gt: deletedOrder } },
-        { $inc: { order: -1 } }
-      );
-  
-      res.status(200).json({ message: "Image deleted from DB and Cloudinary, order updated" });
-      return;
-    } catch (error) {
-      console.error("Error deleting image:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
-      return;
     }
-  };
+
+    const deletedOrder = imageToDelete.order;
+    await Image.findByIdAndDelete(id);
+
+    await Image.updateMany(
+      { userEmail: user.email, order: { $gt: deletedOrder } },
+      { $inc: { order: -1 } }
+    );
+
+    res.status(200).json({ message: "Image deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting image:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
+  }
+};
 
 export const reorderImages = async (req: Request, res: Response) => {
   try {
     const { updates } = req.body;
+    const user = req.user!;
+
     if (!Array.isArray(updates)) {
       res.status(400).json({ message: 'Invalid updates payload' });
       return;
     }
 
+    const imageIds = updates.map((u) => u.id);
+    const images = await Image.find({ _id: { $in: imageIds }, userEmail: user.email });
+
+    if (images.length !== imageIds.length) {
+      res.status(403).json({ message: "You are not authorized to reorder one or more of the selected images." });
+      return;
+    }
+
     const ops = updates.map(({ id, order }) => ({
       updateOne: {
-        filter: { _id: id },
+        filter: { _id: id, userEmail: user.email },
         update: { $set: { order } },
       },
     }));
@@ -167,11 +129,9 @@ export const reorderImages = async (req: Request, res: Response) => {
     await Image.bulkWrite(ops);
 
     res.status(200).json({ message: 'Image order updated successfully' });
-    return;
   } catch (error) {
     console.error("Error reordering images:", error);
     res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
-    return;
   }
 };
 
@@ -179,28 +139,15 @@ export const editImages = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
+    const user = req.user!;
+    const imageFile = req.file;
 
     if (!title || title.trim() === "") {
       res.status(400).json({ message: "Title is required" });
       return;
     }
 
-    const token = req.cookies?.token;
-    if (!token) {
-      res.status(401).json({ message: "Unauthorized: No token provided" });
-      return;
-    }
-
-    const decoded = decodeToken(token);
-    if (!decoded || !decoded.user) {
-      res.status(401).json({ message: "Unauthorized: Invalid token" });
-      return;
-    }
-
-    const user = decoded.user;
-    const imageFile = req.file;
-
-    if(!imageFile){
+    if (!imageFile) {
       res.status(400).json({ message: "Image file is required" });
       return;
     }
@@ -208,10 +155,9 @@ export const editImages = async (req: Request, res: Response) => {
     const updatedImage = await updateSingleImage(id, imageFile, title, user.email);
 
     res.status(200).json({ 
-      message: imageFile ? "Image and title updated successfully" : "Title updated successfully", 
+      message: "Image and title updated successfully", 
       image: updatedImage 
     });
-    return;
   } catch (error: any) {
     console.error("Edit error:", error);
     if (error.message === "Image not found or unauthorized") {
@@ -219,6 +165,5 @@ export const editImages = async (req: Request, res: Response) => {
     } else {
       res.status(500).json({ message: error instanceof Error ? error.message : "Internal Server Error" });
     }
-    return;
   }
 }
